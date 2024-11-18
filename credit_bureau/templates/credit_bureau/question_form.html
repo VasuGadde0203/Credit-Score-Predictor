@@ -1,0 +1,101 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Credit Score Questionnaire</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}"> <!-- Link to your CSS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+
+    <h1>Welcome to the Credit Bureau</h1>
+
+<button id="start-quiz">Start Questionnaire</button>
+
+<!-- Modal -->
+<div id="question-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h2 id="question-text"></h2>
+        <form id="question-form" method="POST" action="{% url 'submit_responses' %}">
+            {% csrf_token %}
+
+            <div id="answer-options"></div>
+            <button type="button" id="next-question">Next</button>
+            <button type="submit" id="submit-quiz" style="display:none;">Submit</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Load questions from JSON data
+    let questions = JSON.parse('{{ questions_json|escapejs }}');
+    let currentQuestionIndex = 0;
+    let responses = {};  // Object to store user responses
+
+    // Function to display a question
+    function showQuestion(index) {
+        if (index < questions.length) {
+            const question = questions[index].fields;
+            const id = questions[index].pk;
+
+            $('#question-text').text(question.question_text);
+            $('#answer-options').empty();
+
+            // Generate radio buttons for each option
+            ['A', 'B', 'C', 'D'].forEach(option => {
+                const optionText = question[`option_${option.toLowerCase()}`];
+                if (optionText) {
+                    $('#answer-options').append(
+                        `<label>
+                            <input type="radio" name="answer" value="${option}"> ${optionText}
+                        </label><br>`
+                    );
+                }
+            });
+
+            // Show or hide buttons as needed
+            $('#next-question').show();
+            $('#submit-quiz').hide();
+        } else {
+            // When no more questions, hide next and show submit button
+            $('#next-question').hide();
+            $('#submit-quiz').show();
+        }
+    }
+
+    // Event listener for the "Start Questionnaire" button
+    $('#start-quiz').click(function() {
+        $('#question-modal').show();  // Show the modal
+        showQuestion(currentQuestionIndex);  // Show the first question
+    });
+
+    // Event listener for the "Next" button
+    $('#next-question').click(function() {
+        // Store selected answer
+        const selectedAnswer = $('input[name="answer"]:checked').val();
+        if (selectedAnswer) {
+            const questionId = questions[currentQuestionIndex].pk;
+            responses[`question_${questionId}`] = selectedAnswer;
+
+            // Move to the next question
+            currentQuestionIndex++;
+            showQuestion(currentQuestionIndex);
+        } else {
+            alert("Please select an answer before proceeding.");
+        }
+    });
+
+    // Submit the collected responses
+    $('#submit-quiz').click(function() {
+        // Append all collected responses to the form
+        for (const [questionName, answer] of Object.entries(responses)) {
+            $('#question-form').append(
+                `<input type="hidden" name="${questionName}" value="${answer}">`
+            );
+        }
+    });
+</script>
+
+</body>
+</html>
